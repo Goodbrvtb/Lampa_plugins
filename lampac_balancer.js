@@ -1700,14 +1700,8 @@
   }
 
   // ============================================================
-  // ЗАПУСК
+  // ЗАПУСК (сразу, без ожидания appready)
   // ============================================================
 
-  if (window.appready) {
-    startPlugin();
-  } else {
-    Lampa.Listener.follow("app", function (e) {
-      if (e.type === "ready") startPlugin();
-    });
-  }
+  if (!window.lampac_plugin_ready) startPlugin();
 })();
