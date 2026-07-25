@@ -284,7 +284,7 @@
     var currentBalancer;
     var filterSources = [];
     var filterFind = { season: [], voice: [] };
-    var balancersWithSearch;
+    var balancersWithSearch = [];
     var memkey;
     var sourceLoaded = false;
 
@@ -575,7 +575,8 @@
     // ============================================================
 
     this.parse = function (str) {
-      var json = Lampa.Arrays.decodeJson(str, {});
+      var json = {};
+      try { json = JSON.parse(str); } catch (e) { json = {}; }
       if (json && json.rch) return this.rch(json);
 
       try {
@@ -1102,7 +1103,8 @@
     };
 
     this.create = function () {
-      return this.render();
+      this.initialize();
+      return files.render();
     };
   }
 
