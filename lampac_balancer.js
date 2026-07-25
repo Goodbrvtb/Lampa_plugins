@@ -1371,7 +1371,11 @@
 
     this.start = function () {
       this.reset();
-      this.search();
+      if (sourceLoaded) {
+        this.search();
+      } else {
+        this.initialize();
+      }
     };
 
     this.destroy = function () {};
