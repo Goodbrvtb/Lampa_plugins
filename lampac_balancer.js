@@ -1349,16 +1349,20 @@
       scroll.clear();
       var msg = Lampa.Lang.translate("lampac_balancer_dont_work");
       if (e && e.accsdb) msg = "Доступ запрещён (accsdb)";
-      scroll.append(
-        '<div class="online-empty"><div class="online-empty__title">' +
+      scroll.body().append(
+        $('<div class="online-empty"><div class="online-empty__title">' +
           msg +
-          "</div></div>",
+          "</div></div>"),
       );
+    };
+
+    this.render = function () {
+      return files.render();
     };
 
     this.create = function () {
       this.initialize();
-      return files.render();
+      return this.render();
     };
   }
 
