@@ -338,6 +338,8 @@
     var balancersWithSearch = [];
     var memkey;
     var sourceLoaded = false;
+    var initAttempts = 0;
+    var maxInitAttempts = 6;
 
     // ============================================================
     // ИНИЦИАЛИЗАЦИЯ
@@ -435,6 +437,7 @@
         })
         .then(function () {
           sourceLoaded = true;
+          initAttempts = 0;
           if (
             !balancersWithSearch.find(function (b) {
               return currentBalancer.slice(0, b.length) === b;
@@ -445,7 +448,26 @@
           self.search();
         })
         .catch(function (e) {
-          self.noConnectToServer(e);
+          initAttempts++;
+          if (initAttempts < maxInitAttempts) {
+            var nextServer =
+              BALANCER_SERVERS[initAttempts % BALANCER_SERVERS.length];
+            setBalancerUrl(nextServer);
+            console.log(
+              "Lampac",
+              "Retry with server:",
+              nextServer,
+              "attempt:",
+              initAttempts,
+            );
+            setTimeout(function () {
+              self.reset();
+              sourceLoaded = false;
+              self.initialize();
+            }, 500);
+          } else {
+            self.noConnectToServer(e);
+          }
         });
     };
 
@@ -608,7 +630,7 @@
                     return c.show;
                   }),
                 );
-              } else if (waitTimes > 15 || json.ready) {
+              } else if (waitTimes > 5 || json.ready) {
                 filter.render().find(".lampac-balanser-loader").remove();
                 if (!resolved) {
                   resolved = true;
@@ -624,7 +646,7 @@
             },
             function () {
               waitTimes++;
-              if (waitTimes > 15) {
+              if (waitTimes > 5) {
                 reject();
               } else if (!resolved) {
                 setTimeout(poll, 1000);
@@ -1347,17 +1369,44 @@
 
     this.noConnectToServer = function (e) {
       scroll.clear();
-      var msg = Lampa.Lang.translate("lampac_balancer_dont_work");
+      var msg =
+        "Все серверы Lampac недоступны. Проверьте подключение или попробуйте позже.";
       if (e && e.accsdb) msg = "Доступ запрещён (accsdb)";
       scroll
         .body()
         .append(
           $(
-            '<div class="online-empty"><div class="online-empty__title">' +
+            '<div class="online-empty">' +
+              '<div class="online-empty__title">' +
               msg +
+              "</div>" +
+              '<div class="online-empty__buttons">' +
+              '<div class="online-empty__button selector" id="lampac-back-btn">Назад</div>' +
+              '<div class="online-empty__button selector" id="lampac-retry-btn">Повторить</div>' +
               "</div></div>",
           ),
         );
+      var self = this;
+      scroll
+        .body()
+        .find("#lampac-back-btn")
+        .on("hover:enter", function () {
+          Lampa.Activity.back();
+        });
+      scroll
+        .body()
+        .find("#lampac-retry-btn")
+        .on("hover:enter", function () {
+          initAttempts = 0;
+          sourceLoaded = false;
+          var next =
+            BALANCER_SERVERS[
+              Math.floor(Math.random() * BALANCER_SERVERS.length)
+            ];
+          setBalancerUrl(next);
+          self.reset();
+          self.initialize();
+        });
     };
 
     this.render = function () {
@@ -1370,6 +1419,7 @@
     };
 
     this.start = function () {
+      initAttempts = 0;
       this.reset();
       if (sourceLoaded) {
         this.search();
