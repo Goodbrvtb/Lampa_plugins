@@ -1376,42 +1376,46 @@
   // РЕГИСТРАЦИЯ ПЛАГИНА
   // ============================================================
 
+  // ============================================================
+  // РЕГИСТРАЦИЯ МАНИФЕСТА (синхронно, до app ready)
+  // ============================================================
+
+  var manifest = {
+    type: "video",
+    version: "1.0.0",
+    name: "Lampac Balancer",
+    description:
+      "Плагин для просмотра онлайн через Lampac-балансеры. Поддерживает все популярные CDN.",
+    component: "lampac",
+    icon:
+      '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">' +
+      '<path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 8h2v8H9zm4 0h2v8h-2z"/>' +
+      "</svg>",
+    onContextMenu: function (object) {
+      return {
+        name: "Смотреть онлайн",
+        description: "",
+      };
+    },
+    onContextLauch: function (object) {
+      Lampa.Component.add("lampac", LampacComponent);
+      Lampa.Activity.push({
+        url: "",
+        title: "Онлайн",
+        component: "lampac",
+        search: object.title,
+        search_one: object.title,
+        search_two: object.original_title,
+        movie: object,
+        page: 1,
+      });
+    },
+  };
+
+  Lampa.Manifest.plugins = manifest;
+
   function startPlugin() {
     window.lampac_plugin_ready = true;
-
-    var manifest = {
-      type: "video",
-      version: "1.0.0",
-      name: "Lampac Balancer",
-      description:
-        "Плагин для просмотра онлайн через Lampac-балансеры. Поддерживает все популярные CDN.",
-      component: "lampac",
-      icon:
-        '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">' +
-        '<path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 8h2v8H9zm4 0h2v8h-2z"/>' +
-        "</svg>",
-      onContextMenu: function (object) {
-        return {
-          name: Lampa.Lang.translate("lampac_watch"),
-          description: "",
-        };
-      },
-      onContextLauch: function (object) {
-        Lampa.Component.add("lampac", LampacComponent);
-        Lampa.Activity.push({
-          url: "",
-          title: Lampa.Lang.translate("title_online"),
-          component: "lampac",
-          search: object.title,
-          search_one: object.title,
-          search_two: object.original_title,
-          movie: object,
-          page: 1,
-        });
-      },
-    };
-
-    Lampa.Manifest.plugins = manifest;
 
     // ============================================================
     // ЛОКАЛИЗАЦИЯ
