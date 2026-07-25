@@ -102,7 +102,8 @@
       },
       field: {
         name: "Прокси для Kinogo",
-        description: "Если сайт заблокирован, выберите прокси (нужна настройка в Настройки → Прокси)",
+        description:
+          "Если сайт заблокирован, выберите прокси (нужна настройка в Настройки → Прокси)",
       },
       variants: [
         { id: "0", name: "Без прокси" },
@@ -231,15 +232,16 @@
     // ============================================================
     function parseMoviePage(html) {
       // Ищем плееры в <li data-provider data-src="..."> (порядок атрибутов любой)
-      var liRegex = /<li[^>]*?((data-provider\s*=\s*["'](\d+)["'][^>]*?data-src\s*=\s*["']([^"']+)["'])|(data-src\s*=\s*["']([^"']+)["'][^>]*?data-provider\s*=\s*["'](\d+)["']))/gi;
+      var liRegex =
+        /<li[^>]*?((data-provider\s*=\s*["'](\d+)["'][^>]*?data-src\s*=\s*["']([^"']+)["'])|(data-src\s*=\s*["']([^"']+)["'][^>]*?data-provider\s*=\s*["'](\d+)["']))/gi;
       var players = [];
       var match;
       while ((match = liRegex.exec(html)) !== null) {
         var provider = parseInt(match[3] || match[7]);
-        var url = (match[4] || match[6]).replace(/&amp;/g, '&');
+        var url = (match[4] || match[6]).replace(/&amp;/g, "&");
         players.push({
           provider: provider,
-          url: url
+          url: url,
         });
       }
 
@@ -249,7 +251,7 @@
         while ((match = iframeRegex.exec(html)) !== null) {
           players.push({
             provider: players.length,
-            url: match[1].replace(/&amp;/g, '&')
+            url: match[1].replace(/&amp;/g, "&"),
           });
         }
       }
@@ -386,7 +388,10 @@
               title: "Kinogo",
             });
           } else {
-            console.log("Kinogo", "No player found on page, fallback to redirect");
+            console.log(
+              "Kinogo",
+              "No player found on page, fallback to redirect",
+            );
             oncomplete({
               success: true,
               url: url,
@@ -427,7 +432,10 @@
           var found = null;
           if (year) {
             for (var i = 0; i < results.length; i++) {
-              if (results[i].year === year || results[i].title.toLowerCase() === title.toLowerCase()) {
+              if (
+                results[i].year === year ||
+                results[i].title.toLowerCase() === title.toLowerCase()
+              ) {
                 found = results[i];
                 break;
               }
@@ -440,7 +448,12 @@
           }
 
           if (found && found.url) {
-            console.log("Kinogo", "Found movie on kinogo:", found.title, found.url);
+            console.log(
+              "Kinogo",
+              "Found movie on kinogo:",
+              found.title,
+              found.url,
+            );
             getVideo(found.url, oncomplete);
           } else {
             console.log("Kinogo", "No results found for:", title);
@@ -481,7 +494,7 @@
     // Обработка клика по результату поиска
     // ============================================================
     Lampa.Listener.follow("full", function (event) {
-      if (event.type === "complete" && event.data && event.data.movie) {
+      if (event.type === "complite" && event.data && event.data.movie) {
         var movie = event.data.movie;
         if (movie.source === "kinogo" && movie.url) {
           // Добавляем кнопку для открытия на Kinogo
