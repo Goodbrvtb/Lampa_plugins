@@ -252,6 +252,14 @@
       var self = this;
       self.loading(true);
 
+      filter.onSearch = function (value) {
+        Lampa.Activity.replace({
+          search: value,
+          clarification: true,
+          similar: true,
+        });
+      };
+
       filter.onBack = function () { self.start(); };
       if (filter.addButtonBack) filter.addButtonBack();
 
@@ -359,7 +367,10 @@
         $(
           '<div class="online-empty">' +
             '<div class="online-empty__title">Ничего не найдено</div>' +
-            '<div class="online-empty__subtitle">Попробуйте другой источник через меню Источник</div>' +
+            '<div class="online-empty__subtitle">' +
+            'CORS-ошибка? Настройте прокси:<br>' +
+            'Настройки → Прокси → укажите https://corsproxy.io/?' +
+            '</div>' +
             "</div>",
         ),
       );
