@@ -146,7 +146,7 @@
       if (Lampa.Platform.is('android') || Lampa.Platform.is('tizen')) {
         check(true);
       } else {
-        var net = new Lampa.Reguest();
+        var net = new Lampa.Request();
         net.silent(host.indexOf(location.host) >= 0
           ? 'https://github.com/'
           : host + '/cors/check',
@@ -274,7 +274,7 @@
   // ============================================================
 
   function LampacComponent(object) {
-    var network = new Lampa.Reguest();
+    var network = new Lampa.Request();
     var scroll = new Lampa.Scroll({ mask: true, over: true });
     var files = new Lampa.Explorer(object);
     var filter = new Lampa.Filter(object);
@@ -1138,7 +1138,7 @@
           description: ''
         };
       },
-      onContextLauch: function (object) {
+      onContextLaunch: function (object) {
         Lampa.Component.add('lampac', LampacComponent);
         Lampa.Activity.push({
           url: '',
@@ -1411,7 +1411,7 @@
     }
 
     Lampa.Listener.follow('full', function (e) {
-      if (e.type === 'complite') {
+      if (e.type === 'complete') {
         addButton({
           render: e.object.activity.render().find('.view--torrent'),
           movie: e.data.movie
