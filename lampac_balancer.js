@@ -1349,11 +1349,15 @@
       scroll.clear();
       var msg = Lampa.Lang.translate("lampac_balancer_dont_work");
       if (e && e.accsdb) msg = "Доступ запрещён (accsdb)";
-      scroll.body().append(
-        $('<div class="online-empty"><div class="online-empty__title">' +
-          msg +
-          "</div></div>"),
-      );
+      scroll
+        .body()
+        .append(
+          $(
+            '<div class="online-empty"><div class="online-empty__title">' +
+              msg +
+              "</div></div>",
+          ),
+        );
     };
 
     this.render = function () {
@@ -1364,6 +1368,13 @@
       this.initialize();
       return this.render();
     };
+
+    this.start = function () {
+      this.reset();
+      this.search();
+    };
+
+    this.destroy = function () {};
   }
 
   // ============================================================
