@@ -80,7 +80,7 @@
 
   var activeSource = SOURCES[0];
   var COMPONENT = "dle_source";
-  var DEFAULT_PROXY = "https://corsproxy.io/?";
+  var DEFAULT_PROXY = "https://api.allorigins.win/raw?url=";
 
   // ============================================================
   // МАНИФЕСТ (регистрируется синхронно)
@@ -121,13 +121,17 @@
     var p = Lampa.Storage.get(COMPONENT + "_proxy", "");
     if (!p) p = Lampa.Storage.get("online_proxy_all", "");
     if (!p) p = DEFAULT_PROXY;
-    if (p && p.slice(-1) !== "/") p += "/";
+    // Добавляем / только если прокси не заканчивается на / или ?
+    if (p && p.slice(-1) !== "/" && p.slice(-1) !== "?") p += "/";
     return p;
   }
 
   function proxyUrl(url) {
     var p = getProxy();
-    return p ? p + url : url;
+    if (!p) return url;
+    // Если прокси использует query-параметр (содержит '?'), кодируем URL
+    if (p.indexOf("?") !== -1) return p + encodeURIComponent(url);
+    return p + url;
   }
 
   function makeUrl(path) {
@@ -272,7 +276,7 @@
       filter.chosen("sort", [activeSource.name]);
 
       filter.onSelect = function (type, a, b) {
-        if (type === "sort") {
+        if (type === "sort" && b && b.source !== undefined) {
           activeSource = SOURCES[b.source];
           retryCount = 0;
           filter.chosen("sort", [activeSource.name]);
@@ -455,7 +459,7 @@
         type: "input",
         name: COMPONENT + "_proxy",
         default: DEFAULT_PROXY,
-        placeholder: "https://corsproxy.io/?",
+        placeholder: "https://api.allorigins.win/raw?url=",
       },
       field: {
         name: "Прокси (CORS Proxy)",
