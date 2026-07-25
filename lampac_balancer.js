@@ -21,26 +21,69 @@
   // ============================================================
 
   var BALANCER_SERVERS = [
-    "http://hdpoisk.ru:2053",
-    "http://78.40.199.67:10630",
-    "http://144.124.224.240:11175",
+    "https://beta.l-vid.online/",
+    "http://online3.skaz.tv/",
+    "http://online4.skaz.tv/",
+    "http://online5.skaz.tv/",
+    "http://online7.skaz.tv/",
   ];
 
-  // CORS Proxy сервисы для обхода ограничений
-  var CORS_PROXIES = {
-    cloudflare1: "https://cors.nb557.workers.dev/",
-    cloudflare2: "https://cors.fx666.workers.dev/",
-    cloudflare3: "https://cors.kp556.workers.dev:8443/",
-    deno: "https://cors557.deno.dev/",
-    render: "https://apn-latest.onrender.com/",
-  };
+  // Выбор быстрейшего сервера (ping)
+  var balancerFastUrl = "";
 
-  // ============================================================
-  // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-  // ============================================================
+  function pingBalancers(callback) {
+    if (balancerFastUrl) { callback(balancerFastUrl); return; }
+
+    var results = [];
+    var pending = BALANCER_SERVERS.length;
+    var finished = false;
+    var timeoutMs = 2000;
+
+    function done() {
+      if (finished) return;
+      finished = true;
+      var best = null;
+      for (var i = 0; i < results.length; i++) {
+        if (results[i].ok && (!best || results[i].ms < best.ms)) best = results[i];
+      }
+      if (best) {
+        balancerFastUrl = best.url;
+        callback(best.url);
+      } else {
+        callback(getRandomBalancer());
+      }
+    }
+
+    for (var i = 0; i < BALANCER_SERVERS.length; i++) {
+      (function (url) {
+        var start = Date.now();
+        var xhr = new XMLHttpRequest();
+        var resolved = false;
+        var timer = setTimeout(function () {
+          if (resolved) return;
+          resolved = true;
+          results.push({ url: url, ok: false, ms: 1e9 });
+          if (--pending === 0) done();
+        }, timeoutMs);
+
+        xhr.onreadystatechange = function () {
+          if (resolved) return;
+          if (xhr.readyState === 4 || xhr.readyState === 2) {
+            resolved = true;
+            clearTimeout(timer);
+            results.push({ url: url, ms: Date.now() - start, ok: true });
+            if (--pending === 0) done();
+          }
+        };
+        xhr.open("GET", url, true);
+        xhr.send();
+      })(BALANCER_SERVERS[i]);
+    }
+    setTimeout(done, timeoutMs + 500);
+  }
 
   function getRandomBalancer() {
-    return BALANCER_SERVERS[
+    return balancerFastUrl || BALANCER_SERVERS[
       Math.floor(Math.random() * BALANCER_SERVERS.length)
     ];
   }
@@ -225,7 +268,13 @@
     });
   };
 
-  var currentBalancerUrl = getRandomBalancer();
+  var currentBalancerUrl = BALANCER_SERVERS[0];
+
+  // Запускаем ping для выбора быстрейшего сервера
+  pingBalancers(function (fastUrl) {
+    currentBalancerUrl = fastUrl;
+    console.log("Lampac", "Fastest server:", fastUrl);
+  });
 
   function getBalancerUrl() {
     return currentBalancerUrl;
@@ -448,6 +497,11 @@
           self.search();
         })
         .catch(function (e) {
+          // accsdb — нужен вход в CUB, нет смысла перебирать серверы
+          if (e && e.accsdb) {
+            self.noConnectToServer(e);
+            return;
+          }
           initAttempts++;
           if (initAttempts < maxInitAttempts) {
             var nextServer =
@@ -1369,9 +1423,10 @@
 
     this.noConnectToServer = function (e) {
       scroll.clear();
-      var msg =
-        "Все серверы Lampac недоступны. Проверьте подключение или попробуйте позже.";
-      if (e && e.accsdb) msg = "Доступ запрещён (accsdb)";
+      var msg = "Серверы Lampac не отвечают. Проверьте подключение или попробуйте позже.";
+      if (e && e.accsdb) {
+        msg = "Требуется авторизация CUB.\nВойдите в аккаунт: Настройки → Синхронизация → Войти через CUB.";
+      }
       scroll
         .body()
         .append(
@@ -1564,14 +1619,17 @@
         description: "Выбор Lampac-сервера для поиска источников",
       },
       variants: [
-        { id: "auto", name: "Авто (случайный)" },
-        { id: "hdpoisk.ru:2053", name: "hdpoisk.ru:2053" },
-        { id: "78.40.199.67:10630", name: "78.40.199.67:10630" },
-        { id: "144.124.224.240:11175", name: "144.124.224.240:11175" },
+        { id: "auto", name: "Авто (быстрейший)" },
+        { id: "beta.l-vid.online", name: "beta.l-vid.online (Alpac)" },
+        { id: "online3.skaz.tv", name: "online3.skaz.tv" },
+        { id: "online4.skaz.tv", name: "online4.skaz.tv" },
+        { id: "online5.skaz.tv", name: "online5.skaz.tv" },
+        { id: "online7.skaz.tv", name: "online7.skaz.tv" },
       ],
       onChange: function (value) {
         if (value && value !== "auto") {
-          setBalancerUrl("http://" + value);
+          var proto = value.indexOf("beta.l-vid") >= 0 ? "https://" : "http://";
+          setBalancerUrl(proto + value + "/");
         }
       },
     });
