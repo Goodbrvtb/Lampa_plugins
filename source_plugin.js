@@ -10,7 +10,7 @@
  * - Baskino (baskino.me)
  * - Kinokrad (kinokrad.co)
  * 
- * @version 1.1.0
+ * @version 1.2.0
  */
 
 (function () {
@@ -80,13 +80,14 @@
 
   var activeSource = SOURCES[0];
   var COMPONENT = "dle_source";
+  var DEFAULT_PROXY = "https://corsproxy.io/?";
 
   // ============================================================
   // МАНИФЕСТ (регистрируется синхронно)
   // ============================================================
   var manifest = {
     type: "video",
-    version: "1.1.0",
+    version: "1.2.0",
     name: "DLE Source",
     description: "Поиск на Kinogo, Lordfilm, Baskino, Kinokrad",
     component: COMPONENT,
@@ -116,9 +117,10 @@
   // ============================================================
 
   function getProxy() {
-    var p = Lampa.Storage.get("online_proxy_all", "");
-    var cp = Lampa.Storage.get("online_proxy_" + COMPONENT, "");
-    if (cp) p = cp;
+    // Приоритет: свой прокси плагина → глобальный прокси → дефолтный
+    var p = Lampa.Storage.get(COMPONENT + "_proxy", "");
+    if (!p) p = Lampa.Storage.get("online_proxy_all", "");
+    if (!p) p = DEFAULT_PROXY;
     if (p && p.slice(-1) !== "/") p += "/";
     return p;
   }
@@ -369,7 +371,7 @@
             '<div class="online-empty__title">Ничего не найдено</div>' +
             '<div class="online-empty__subtitle">' +
             'CORS-ошибка? Настройте прокси:<br>' +
-            'Настройки → Прокси → укажите https://corsproxy.io/?' +
+            'Настройки → DLE Source → Прокси (CORS Proxy)' +
             '</div>' +
             "</div>",
         ),
@@ -438,9 +440,32 @@
     resetTemplates();
     Lampa.Component.add(COMPONENT, SourceComponent);
 
+    // ============================================================
+    // Настройки плагина (Прокси)
+    // ============================================================
+    Lampa.SettingsApi.addParam({
+      component: COMPONENT,
+      param: { type: "title" },
+      field: { name: "DLE Source v1.2.0" },
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: COMPONENT,
+      param: {
+        type: "input",
+        name: COMPONENT + "_proxy",
+        default: DEFAULT_PROXY,
+        placeholder: "https://corsproxy.io/?",
+      },
+      field: {
+        name: "Прокси (CORS Proxy)",
+        description: "URL прокси для обхода CORS/Cloudflare. Оставьте пустым, чтобы использовать глобальный прокси Lampa.",
+      },
+    });
+
     var button =
       '<div class="full-start__button selector view--online ' + COMPONENT +
-      '--button" data-subtitle="DLE Source v1.1">' +
+      '--button" data-subtitle="DLE Source v1.2">' +
       '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">' +
       '<path d="M8 5v14l11-7z"/></svg>' +
       "<span>Source</span></div>";
