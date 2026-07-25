@@ -17,7 +17,7 @@
 (function () {
   "use strict";
 
-  var network = new Lampa.Request();
+  var network = new Lampa.Reguest();
   var BASE_URL = "https://kinogo.ec";
   var SEARCH_URL = BASE_URL + "/index.php?do=search&subaction=search&story=";
   var COMPONENT = "kinogo";

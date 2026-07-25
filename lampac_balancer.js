@@ -175,7 +175,7 @@
       if (Lampa.Platform.is("android") || Lampa.Platform.is("tizen")) {
         check(true);
       } else {
-        var net = new Lampa.Request();
+        var net = new Lampa.Reguest();
         net.silent(
           host.indexOf(location.host) >= 0
             ? "https://github.com/"
@@ -325,7 +325,7 @@
   // ============================================================
 
   function LampacComponent(object) {
-    var network = new Lampa.Request();
+    var network = new Lampa.Reguest();
     var scroll = new Lampa.Scroll({ mask: true, over: true });
     var files = new Lampa.Explorer(object);
     var filter = new Lampa.Filter(object);
