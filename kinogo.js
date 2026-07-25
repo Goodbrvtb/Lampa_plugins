@@ -8,11 +8,10 @@
  *
  * Архитектура kinogo.ec:
  * - DLE (DataLife Engine) сайт с Cloudflare защитой
+ * - Плееры хранятся в <li data-provider="X" data-src="URL">
  * - Поиск: https://kinogo.ec/index.php?do=search&subaction=search&story=QUERY
- * - Видео плеер загружается через iframe с data-src на cinemar.cc
- * - Для сериалов — выбор сезона/серии через data-id
  *
- * @version 0.1.0
+ * @version 0.2.0
  */
 
 (function () {
@@ -21,17 +20,43 @@
   var network = new Lampa.Request();
   var BASE_URL = "https://kinogo.ec";
   var SEARCH_URL = BASE_URL + "/index.php?do=search&subaction=search&story=";
+  var COMPONENT = "kinogo";
+
+  // ============================================================
+  // Прокси: берём из настроек Lampa (Настройки → Прокси)
+  // ============================================================
+  function getProxy() {
+    var proxy = Lampa.Storage.get("online_proxy_all", "");
+    var kinogoProxy = Lampa.Storage.get("online_proxy_" + COMPONENT, "");
+    if (kinogoProxy) proxy = kinogoProxy;
+    if (proxy && proxy.slice(-1) !== "/") proxy += "/";
+    return proxy;
+  }
+
+  function proxyUrl(url) {
+    var p = getProxy();
+    return p ? p + url : url;
+  }
+
+  // ============================================================
+  // Выполнение запроса с правильным dataType и прокси
+  // ============================================================
+  function requestHTML(url, onsuccess, onerror) {
+    var fullUrl = proxyUrl(url);
+    console.log("Kinogo", "Request:", fullUrl);
+    network.native(fullUrl, onsuccess, onerror, false, { dataType: "text" });
+  }
 
   // ============================================================
   // Регистрация плагина
   // ============================================================
   var manifest = {
     type: "balancer",
-    version: "0.1.0",
+    version: "0.2.0",
     name: "Kinogo",
     description: "Поиск и просмотр фильмов с kinogo.ec",
     icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
-    component: "kinogo",
+    component: COMPONENT,
   };
 
   function startPlugin() {
@@ -41,7 +66,7 @@
     // Настройки плагина
     // ============================================================
     Lampa.SettingsApi.addParam({
-      component: "kinogo",
+      component: COMPONENT,
       param: {
         type: "title",
       },
@@ -51,7 +76,7 @@
     });
 
     Lampa.SettingsApi.addParam({
-      component: "kinogo",
+      component: COMPONENT,
       param: {
         type: "select",
         name: "kinogo_player",
@@ -68,6 +93,23 @@
       ],
     });
 
+    Lampa.SettingsApi.addParam({
+      component: COMPONENT,
+      param: {
+        type: "select",
+        name: "kinogo_proxy",
+        default: "0",
+      },
+      field: {
+        name: "Прокси для Kinogo",
+        description: "Если сайт заблокирован, выберите прокси (нужна настройка в Настройки → Прокси)",
+      },
+      variants: [
+        { id: "0", name: "Без прокси" },
+        { id: "1", name: "Использовать глобальный прокси" },
+      ],
+    });
+
     // ============================================================
     // Компонент поиска/категории (категория в меню)
     // ============================================================
@@ -79,7 +121,7 @@
         self.activity.loader(true);
 
         // Загружаем популярные/новинки
-        network.silent(
+        requestHTML(
           BASE_URL + "/v1new/",
           function (html) {
             var items = parseCatalogPage(html);
@@ -185,37 +227,53 @@
     }
 
     // ============================================================
-    // Парсинг страницы фильма (извлечение iframe data-src)
+    // Парсинг страницы фильма (извлечение data-src из плееров)
     // ============================================================
-    function parseMoviePage(html, playerIndex) {
-      playerIndex = playerIndex || 0;
-
-      // Ищем все iframe с data-src
-      var iframeRegex = /<iframe[^>]*data-src="([^"]*cinemar\.cc[^"]*)"/gi;
-      var iframes = [];
+    function parseMoviePage(html) {
+      // Ищем плееры в <li data-provider data-src="..."> (порядок атрибутов любой)
+      var liRegex = /<li[^>]*?((data-provider\s*=\s*["'](\d+)["'][^>]*?data-src\s*=\s*["']([^"']+)["'])|(data-src\s*=\s*["']([^"']+)["'][^>]*?data-provider\s*=\s*["'](\d+)["']))/gi;
+      var players = [];
       var match;
-      while ((match = iframeRegex.exec(html)) !== null) {
-        iframes.push(match[1]);
+      while ((match = liRegex.exec(html)) !== null) {
+        var provider = parseInt(match[3] || match[7]);
+        var url = (match[4] || match[6]).replace(/&amp;/g, '&');
+        players.push({
+          provider: provider,
+          url: url
+        });
       }
 
-      // Если указан конкретный плеер, берем его
+      // Если не нашли через li, ищем iframe с data-src (lazy iframe)
+      if (players.length === 0) {
+        var iframeRegex = /<iframe[^>]*data-src\s*=\s*["']([^"']+)["']/gi;
+        while ((match = iframeRegex.exec(html)) !== null) {
+          players.push({
+            provider: players.length,
+            url: match[1].replace(/&amp;/g, '&')
+          });
+        }
+      }
+
+      // Выбираем плеер по настройке
       var selectedPlayer = Lampa.Storage.get("kinogo_player", "0");
       var idx = parseInt(selectedPlayer) || 0;
-
-      // Плеер 3 вынесен в отдельную позицию
       if (idx === 3) idx = 2;
 
-      var iframeSrc = iframes[idx] || iframes[0];
-
-      // Извлекаем ID видео
-      var videoId = "";
-      var idMatch = iframeSrc.match(/\/embed\/(\d+)/);
-      if (idMatch) videoId = idMatch[1];
+      // Если выбранного индекса нет, берём первый доступный
+      var playerUrl = "";
+      var targetPlayer = null;
+      for (var i = 0; i < players.length; i++) {
+        if (players[i].provider === idx) {
+          targetPlayer = players[i];
+          break;
+        }
+      }
+      if (!targetPlayer) targetPlayer = players[0];
+      if (targetPlayer) playerUrl = targetPlayer.url;
 
       return {
-        iframeSrc: iframeSrc,
-        videoId: videoId,
-        iframes: iframes,
+        iframeSrc: playerUrl,
+        players: players,
       };
     }
 
@@ -225,7 +283,7 @@
     function search(query, oncomplete, onerror) {
       console.log("Kinogo", "Searching for:", query);
 
-      network.silent(
+      requestHTML(
         SEARCH_URL + encodeURIComponent(query),
         function (html) {
           var items = parseSearchResults(html);
@@ -314,13 +372,13 @@
     function getVideo(url, oncomplete) {
       console.log("Kinogo", "Getting video from:", url);
 
-      network.silent(
+      requestHTML(
         url,
         function (html) {
           var player = parseMoviePage(html);
 
           if (player.iframeSrc) {
-            console.log("Kinogo", "Found iframe:", player.iframeSrc);
+            console.log("Kinogo", "Found player URL:", player.iframeSrc);
             oncomplete({
               success: true,
               url: player.iframeSrc,
@@ -328,7 +386,7 @@
               title: "Kinogo",
             });
           } else {
-            console.log("Kinogo", "No iframe found on page");
+            console.log("Kinogo", "No player found on page, fallback to redirect");
             oncomplete({
               success: true,
               url: url,
@@ -338,12 +396,60 @@
           }
         },
         function () {
+          console.log("Kinogo", "Failed to load movie page");
           oncomplete({
-            success: true,
-            url: url,
-            player: "redirect",
-            title: "Kinogo",
+            success: false,
           });
+        },
+      );
+    }
+
+    // ============================================================
+    // Поиск фильма на Kinogo по названию и получение URL плеера
+    // ============================================================
+    function getLinkByTitle(object, oncomplete) {
+      var title = object.title || "";
+      var year = object.year || "";
+
+      if (!title) {
+        oncomplete({ success: false });
+        return;
+      }
+
+      console.log("Kinogo", "Searching by title:", title, year);
+
+      requestHTML(
+        SEARCH_URL + encodeURIComponent(title),
+        function (html) {
+          var results = parseSearchResults(html);
+
+          // Ищем совпадение по году, если он указан
+          var found = null;
+          if (year) {
+            for (var i = 0; i < results.length; i++) {
+              if (results[i].year === year || results[i].title.toLowerCase() === title.toLowerCase()) {
+                found = results[i];
+                break;
+              }
+            }
+          }
+
+          // Если не нашли по году, берём первый результат
+          if (!found && results.length > 0) {
+            found = results[0];
+          }
+
+          if (found && found.url) {
+            console.log("Kinogo", "Found movie on kinogo:", found.title, found.url);
+            getVideo(found.url, oncomplete);
+          } else {
+            console.log("Kinogo", "No results found for:", title);
+            oncomplete({ success: false });
+          }
+        },
+        function () {
+          console.log("Kinogo", "Search request failed for:", title);
+          oncomplete({ success: false });
         },
       );
     }
@@ -358,11 +464,13 @@
       },
       getLink: function (object, oncomplete) {
         var url = object.url;
-        if (!url && object.id) {
-          url = BASE_URL + "/?newsid=" + object.id;
-        }
-        if (url) {
+
+        // Если есть прямой URL от kinogo, используем его
+        if (url && url.indexOf("kinogo") >= 0) {
           getVideo(url, oncomplete);
+        } else if (object.title) {
+          // Если нет URL, но есть название — ищем на kinogo по названию
+          getLinkByTitle(object, oncomplete);
         } else {
           oncomplete({ success: false });
         }
